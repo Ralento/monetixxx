@@ -3,7 +3,6 @@
     "name": "monetixx",
     "slug": "monetixx",
     "version": "1.0.0",
-
     "scheme": "monetixx",
     "web": {
       "bundler": "metro",
@@ -21,21 +20,19 @@
     ],
     "experiments": {
       "typedRoutes": true,
-
       "tsconfigPaths": true
     },
-
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-
     "userInterfaceStyle": "automatic",
-
     "splash": {
       "image": "./assets/splash.png",
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
-    "assetBundlePatterns": ["**/*"],
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "ios": {
       "supportsTablet": true
     },
@@ -43,6 +40,13 @@
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
+      },
+      "package": "com.ralento.mvk.monetixx"
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "73b19cf2-9d12-45b1-9b3f-e38bbf5bd9f9"
       }
     }
   }

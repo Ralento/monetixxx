@@ -11,8 +11,7 @@
     },
     "plugins": ["expo-router"],
     "experiments": {
-      "typedRoutes": true,
-      "tsconfigPaths": true
+      "typedRoutes": true
     },
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -34,7 +33,9 @@
       "package": "com.ralento.mvk.monetixx"
     },
     "extra": {
-      "router": {},
+      "router": {
+        "origin": false
+      },
       "eas": {
         "projectId": "73b19cf2-9d12-45b1-9b3f-e38bbf5bd9f9"
       }

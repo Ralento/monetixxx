@@ -100,7 +100,12 @@ export default function HomeScreen() {
           <View className="flex-row justify-between items-center">
             <View>
               <Text className="text-secondary-300 text-sm mb-1">Saldo Actual</Text>
-              <Text className="text-primary-300 text-2xl font-bold">${user?.saldo_actual?.toFixed(2) || "0.00"}</Text>
+              <Text className="text-primary-300 text-2xl font-bold">
+                $
+                {user?.saldo_actual != null
+                  ? Number(user.saldo_actual).toFixed(2)
+                  : "0.00"}
+              </Text>
             </View>
             <View className="bg-primary-300/20 p-2 rounded-full">
               <Ionicons name="wallet-outline" size={24} color="#ffd166" />

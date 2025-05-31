@@ -7,7 +7,7 @@ import gastosRoutes from "./routes/gastos"
 import usuariosRoutes from "./routes/usuarios"
 
 const app = express()
-const PORT = 3000
+const PORT = 8080
 
 // Middlewares
 app.use(helmet())
@@ -46,9 +46,8 @@ const iniciarServidor = async () => {
     }
 
     // Iniciar servidor
-    app.listen(PORT, () => {
-      console.log(`🚀 Servidor ejecutándose en http://localhost:${PORT}`)
-      console.log(`📱 Configura tu frontend para usar esta URL`)
+    app.listen(PORT, "0.0.0.0", () => {
+      console.log(`🚀 Servidor ejecutándose en http://0.0.0.0:${PORT}`)
     })
   } catch (error) {
     console.error("❌ Error iniciando el servidor:", error)

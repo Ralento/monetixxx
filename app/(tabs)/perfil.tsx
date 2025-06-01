@@ -18,7 +18,7 @@ export default function PerfilScreen() {
         style: "destructive",
         onPress: async () => {
           await logout()
-          router.replace("/")
+          router.replace("/(auth)/login")
         },
       },
     ])

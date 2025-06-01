@@ -102,11 +102,11 @@ export default function EstadisticasScreen() {
               estadisticas.map((item, index) => (
                 <View key={index} className="flex-row items-center justify-between">
                   <View className="flex-row items-center">
-                    <View className="w-3 h-3 rounded-full mr-2" style={{ backgroundColor: "#ffd166" }} />
+                    <View className="w-3 h-3 rounded-full mr-2" style={{ backgroundColor: item.color || '#ccc' }} />
                     <Text className="text-white">{item.categoria}</Text>
                   </View>
                   <View className="flex-row items-center">
-                    <Text className="text-white font-medium mr-2">${item.total.toFixed(2)}</Text>
+                    <Text className="text-white font-medium mr-2">${item.total !== undefined && item.total !== null ? item.total.toFixed(2) : '0.00'}</Text>
                     <Text className="text-xs text-secondary-400">{item.porcentaje}%</Text>
                   </View>
                 </View>

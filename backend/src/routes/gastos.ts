@@ -5,7 +5,7 @@ const router = Router()
 
 // ✅ Rutas básicas CRUD
 router.get("/usuario/:usuarioId", GastoController.obtenerGastos)
-router.get("/detalle/:id", GastoController.obtenerGastoPorId)
+router.get("/detale/:id", GastoController.obtenerGastoPorId)
 router.post("/", GastoController.crearGasto)
 router.put("/:id", GastoController.actualizarGasto)
 router.delete("/:id", GastoController.eliminarGasto)

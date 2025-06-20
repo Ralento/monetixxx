@@ -1,11 +1,6 @@
 import axios from "axios"
 
-<<<<<<< HEAD
 const API_URL = "http://192.168.1.76:8000/api"
-=======
-const API_URL = "http://192.168.1.105:8080/api"
->>>>>>> d3590c377b705eac276c9fd660f204c517e2cdd2
-
 export interface Gasto {
   id: number
   descripcion: string

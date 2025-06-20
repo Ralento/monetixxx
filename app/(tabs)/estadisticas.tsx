@@ -204,11 +204,8 @@ export default function EstadisticasScreen() {
                     <Text className="text-white">{item.categoria}</Text>
                   </View>
                   <View className="flex-row items-center">
-<<<<<<< HEAD
                     <Text className="text-white font-medium mr-2">${(Number(item.total) || 0).toFixed(2)}</Text>
-=======
                     <Text className="text-white font-medium mr-2">${item.total !== undefined && item.total !== null ? item.total.toFixed(2) : '0.00'}</Text>
->>>>>>> d3590c377b705eac276c9fd660f204c517e2cdd2
                     <Text className="text-xs text-secondary-400">{item.porcentaje}%</Text>
                   </View>
                 </View>

@@ -22,6 +22,9 @@ export class GastoController {
       const { usuarioId } = req.params
       const { limite = "50", pagina = "1", categoria, fechaInicio, fechaFin } = req.query
 
+      // Convertir usuarioId a número entero
+      const usuarioIdNum = Number.parseInt(usuarioId as string);
+
       let query = `
         SELECT 
           g.id,
@@ -38,7 +41,7 @@ export class GastoController {
         WHERE g.usuario_id = ?
       `
 
-      const params: any[] = [usuarioId]
+      const params: any[] = [usuarioIdNum]
 
       if (categoria) {
         query += " AND g.categoria_id = ?"
@@ -61,8 +64,12 @@ export class GastoController {
       const paginaNum = Number.parseInt(pagina as string)
       const offset = (paginaNum - 1) * limitNum
 
-      query += " LIMIT ? OFFSET ?"
-      params.push(limitNum, offset)
+      // Comentamos temporalmente LIMIT y OFFSET para depurar
+      // query += " LIMIT ? OFFSET ?"
+      // params.push(limitNum, offset)
+
+      console.log("Executing query:", query)
+      console.log("With params:", params)
 
       const [rows] = await pool.execute<GastoRow[]>(query, params)
 

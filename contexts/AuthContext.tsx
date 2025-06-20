@@ -6,7 +6,11 @@ import AsyncStorage from "@react-native-async-storage/async-storage"
 import axios from "axios"
 
 // URL base de la API
+<<<<<<< HEAD
 const API_URL = "http://192.168.1.76:8000/api"
+=======
+const API_URL = "http://192.168.1.105:8080/api"
+>>>>>>> d3590c377b705eac276c9fd660f204c517e2cdd2
 
 interface User {
   id: number

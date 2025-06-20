@@ -178,20 +178,24 @@ export default function HomeScreen() {
             gastos.map((gasto) => {
               const { icono, color, bg } = getIconoCategoria(gasto.categoria_id)
               return (
-                <View key={gasto.id} className={`gasto-item ${getClaseGasto(gasto.categoria_id)} mb-2`}>
-                  <View className="flex-row justify-between items-center">
-                    <View className="flex-row items-center">
-                      <View className={`${bg} p-2 rounded-full mr-3`}>
-                        <Ionicons name={icono as any} size={18} color={color} />
-                      </View>
-                      <View>
-                        <Text className="text-white font-medium">{gasto.descripcion}</Text>
-                        <Text className="text-sm text-secondary-400">{formatFecha(gasto.fecha)}</Text>
-                      </View>
+              <View key={gasto.id} className={`gasto-item ${getClaseGasto(gasto.categoria_id)} mb-2`}>
+                <View className="flex-row justify-between items-center">
+                  <View className="flex-row items-center">
+                    <View className={`${bg} p-2 rounded-full mr-3`}>
+                      <Ionicons name={icono as any} size={18} color={color} />
                     </View>
+                    <View>
+                      <Text className="text-white font-medium">{gasto.descripcion}</Text>
+                      <Text className="text-sm text-secondary-400">{formatFecha(gasto.fecha)}</Text>
+                    </View>
+<<<<<<< HEAD
                     <Text className="text-primary-300 font-bold">-${(Number(gasto.monto) || 0).toFixed(2)}</Text>
+=======
+>>>>>>> d3590c377b705eac276c9fd660f204c517e2cdd2
                   </View>
+                  <Text className="text-primary-300 font-bold">-${gasto.monto.toFixed(2)}</Text>
                 </View>
+              </View>
               )
             })
           ) : (

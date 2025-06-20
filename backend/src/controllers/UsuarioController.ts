@@ -224,4 +224,182 @@ export class UsuarioController {
       })
     }
   }
+
+  // Actualizar saldo_actual del usuario
+  static async actualizarSaldo(req: Request, res: Response) {
+    try {
+      const { id } = req.params
+      const { saldo_actual } = req.body
+
+      if (saldo_actual == null || isNaN(Number(saldo_actual))) {
+        return res.status(400).json({
+          success: false,
+          message: "El saldo_actual es obligatorio y debe ser un número",
+        })
+      }
+
+      // Actualizar saldo en la base de datos
+      const [result] = await pool.execute<ResultSetHeader>(
+        "UPDATE usuarios SET saldo_actual = ? WHERE id = ?",
+        [saldo_actual, id],
+      )
+
+      if ((result as ResultSetHeader).affectedRows === 0) {
+        return res.status(404).json({
+          success: false,
+          message: "Usuario no encontrado",
+        })
+      }
+
+      // Obtener usuario actualizado
+      const [usuarios] = await pool.execute<Usuario[]>(
+        "SELECT id, nombre, email, saldo_actual FROM usuarios WHERE id = ?",
+        [id],
+      )
+
+      res.json({
+        success: true,
+        message: "Saldo actualizado correctamente",
+        data: usuarios[0],
+      })
+    } catch (error) {
+      console.error("Error actualizando saldo:", error)
+      res.status(500).json({
+        success: false,
+        message: "Error interno del servidor",
+      })
+    }
+  }
+
+  // Actualizar datos personales del usuario
+  static async actualizarDatosPersonales(req: Request, res: Response) {
+    try {
+      const { id } = req.params;
+      const { nombre, email } = req.body;
+
+      if (!nombre || !email) {
+        return res.status(400).json({
+          success: false,
+          message: "Nombre y email son obligatorios",
+        });
+      }
+
+      // Validar formato de email
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email)) {
+        return res.status(400).json({
+          success: false,
+          message: "Formato de email inválido",
+        });
+      }
+
+      // Verificar si el email ya existe para otro usuario
+      const [usuarios] = await pool.execute<Usuario[]>(
+        "SELECT id FROM usuarios WHERE email = ? AND id != ?",
+        [email, id]
+      );
+      if (usuarios.length > 0) {
+        return res.status(400).json({
+          success: false,
+          message: "El email ya está registrado por otro usuario",
+        });
+      }
+
+      // Actualizar datos personales
+      const [result] = await pool.execute<ResultSetHeader>(
+        "UPDATE usuarios SET nombre = ?, email = ? WHERE id = ?",
+        [nombre, email, id]
+      );
+
+      if ((result as ResultSetHeader).affectedRows === 0) {
+        return res.status(404).json({
+          success: false,
+          message: "Usuario no encontrado",
+        });
+      }
+
+      // Obtener usuario actualizado
+      const [usuarioActualizado] = await pool.execute<Usuario[]>(
+        "SELECT id, nombre, email FROM usuarios WHERE id = ?",
+        [id]
+      );
+
+      res.json({
+        success: true,
+        message: "Datos personales actualizados correctamente",
+        data: usuarioActualizado[0],
+      });
+    } catch (error) {
+      console.error("Error actualizando datos personales:", error);
+      res.status(500).json({
+        success: false,
+        message: "Error interno del servidor",
+      });
+    }
+  }
+
+  // Cambiar contraseña del usuario
+  static async cambiarContrasena(req: Request, res: Response) {
+    try {
+      const { id } = req.params;
+      const { actual, nueva } = req.body;
+
+      if (!actual || !nueva) {
+        return res.status(400).json({
+          success: false,
+          message: "La contraseña actual y la nueva son obligatorias",
+        });
+      }
+
+      if (nueva.length < 6) {
+        return res.status(400).json({
+          success: false,
+          message: "La nueva contraseña debe tener al menos 6 caracteres",
+        });
+      }
+
+      // Obtener usuario
+      const [usuarios] = await pool.execute<Usuario[]>(
+        "SELECT password FROM usuarios WHERE id = ?",
+        [id]
+      );
+      if (usuarios.length === 0) {
+        return res.status(404).json({
+          success: false,
+          message: "Usuario no encontrado",
+        });
+      }
+
+      const usuario = usuarios[0];
+      // Verificar contraseña actual
+      const passwordValida = await bcrypt.compare(actual, usuario.password);
+      if (!passwordValida) {
+        return res.status(401).json({
+          success: false,
+          message: "La contraseña actual es incorrecta",
+        });
+      }
+
+      // Encriptar nueva contraseña
+      const salt = await bcrypt.genSalt(10);
+      const passwordHash = await bcrypt.hash(nueva, salt);
+
+      // Actualizar contraseña
+      await pool.execute(
+        "UPDATE usuarios SET password = ? WHERE id = ?",
+        [passwordHash, id]
+      );
+
+      res.json({
+        success: true,
+        message: "Contraseña actualizada correctamente",
+      });
+    } catch (error) {
+      console.error("Error cambiando contraseña:", error);
+      res.status(500).json({
+        success: false,
+        message: "Error interno del servidor",
+      });
+    }
+  }
 }

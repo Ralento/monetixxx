@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { View, Text, ScrollView, ActivityIndicator } from "react-native"
+import { View, Text, ScrollView, ActivityIndicator, TouchableOpacity } from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context"
 import { Ionicons } from "@expo/vector-icons"
 import { useAuth } from "../../contexts/AuthContext"
@@ -14,6 +14,12 @@ export default function EstadisticasScreen() {
   const [estadisticas, setEstadisticas] = useState<EstadisticaCategoria[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [gastoMes, setGastoMes] = useState<number>(0)
+  const [saldoInicialMes, setSaldoInicialMes] = useState<number | null>(null)
+  const [gastosMensuales, setGastosMensuales] = useState<{ labels: string[]; valores: number[] }>({ labels: [], valores: [] })
+  const [periodoGrafica, setPeriodoGrafica] = useState<'mensual' | 'semanal' | 'anual'>('mensual')
+  const [gastosGrafica, setGastosGrafica] = useState<{ labels: string[]; valores: number[] }>({ labels: [], valores: [] })
+  const [loadingGrafica, setLoadingGrafica] = useState(false)
 
   // Datos de ejemplo para el gráfico de barras
   const mesesData = {
@@ -23,7 +29,14 @@ export default function EstadisticasScreen() {
 
   useEffect(() => {
     cargarEstadisticas()
+    cargarResumen()
+    cargarGastosGrafica(periodoGrafica)
   }, [])
+
+  // Cargar gráfica al cambiar periodo
+  useEffect(() => {
+    cargarGastosGrafica(periodoGrafica)
+  }, [periodoGrafica, user])
 
   const cargarEstadisticas = async () => {
     if (!user) return
@@ -41,6 +54,49 @@ export default function EstadisticasScreen() {
     }
   }
 
+  // Nueva función para cargar el resumen del mes
+  const cargarResumen = async () => {
+    if (!user) return
+    try {
+      const response = await fetch(`http://192.168.1.76:8000/api/gastos/usuario/${user.id}/resumen`)
+      const json = await response.json()
+      if (json.success && json.data) {
+        const saldoActual = Number(user.saldo_actual) || 0;
+        const gastoMes = Number(json.data.gasto_mes_actual) || 0;
+        setGastoMes(gastoMes)
+        setSaldoInicialMes(saldoActual + gastoMes)
+      }
+    } catch (err) {
+      // No hacer nada
+    }
+  }
+
+  // Nueva función para cargar los datos de la gráfica dinámica
+  const cargarGastosGrafica = async (periodo: 'mensual' | 'semanal' | 'anual') => {
+    if (!user) return
+    setLoadingGrafica(true)
+    try {
+      const data = await GastoService.obtenerGastosPorPeriodo(user.id, periodo)
+      let labels: string[] = []
+      let valores: number[] = []
+      if (periodo === 'mensual') {
+        labels = data.map((item: any) => item.periodo.slice(5)) // MM
+        valores = data.map((item: any) => Number(item.total) || 0)
+      } else if (periodo === 'semanal') {
+        labels = data.map((item: any) => `Sem ${item.periodo.slice(-2)}`)
+        valores = data.map((item: any) => Number(item.total) || 0)
+      } else if (periodo === 'anual') {
+        labels = data.map((item: any) => item.periodo.slice(0, 4)) // YYYY
+        valores = data.map((item: any) => Number(item.total) || 0)
+      }
+      setGastosGrafica({ labels, valores })
+    } catch (err) {
+      setGastosGrafica({ labels: [], valores: [] })
+    } finally {
+      setLoadingGrafica(false)
+    }
+  }
+
   return (
     <SafeAreaView className="container">
       <ScrollView className="flex-1 px-4">
@@ -54,17 +110,25 @@ export default function EstadisticasScreen() {
         <View className="flex-row justify-between mb-6">
           <View className="card flex-1 mr-2 bg-secondary-800 border border-primary-300/30">
             <View className="items-center">
-              <Ionicons name="trending-down-outline" size={24} color="#ffd166" />
-              <Text className="text-primary-300 font-bold text-lg mt-1">$207.45</Text>
-              <Text className="text-secondary-300 text-xs">Este mes</Text>
+              <Ionicons name="wallet-outline" size={24} color="#ffd166" />
+              <Text className="text-primary-300 font-bold text-lg mt-1">
+                ${user?.saldo_actual != null ? Number(user.saldo_actual).toFixed(2) : "0.00"}
+              </Text>
+              <Text className="text-secondary-300 text-xs">Saldo actual</Text>
+              {/* Saldo inicial mes */}
+              {typeof saldoInicialMes === 'number' && !isNaN(saldoInicialMes) ? (
+                <Text className="text-secondary-400 text-xs mt-1">Saldo inicial mes: ${saldoInicialMes.toFixed(2)}</Text>
+              ) : null}
             </View>
           </View>
 
           <View className="card flex-1 ml-2 bg-secondary-800 border border-primary-300/30">
             <View className="items-center">
-              <Ionicons name="calendar-outline" size={24} color="#ffd166" />
-              <Text className="text-primary-300 font-bold text-lg mt-1">$15.50</Text>
-              <Text className="text-secondary-300 text-xs">Promedio diario</Text>
+              <Ionicons name="trending-down-outline" size={24} color="#ffd166" />
+              <Text className="text-primary-300 font-bold text-lg mt-1">
+                -${gastoMes.toFixed(2)}
+              </Text>
+              <Text className="text-secondary-300 text-xs">Gastado este mes</Text>
             </View>
           </View>
         </View>
@@ -84,9 +148,43 @@ export default function EstadisticasScreen() {
           <PieChart data={estadisticas} title="Gastos por Categoría" />
         )}
 
-        {/* Bar Chart */}
-        <View className="mb-6">
-          <BarChart labels={mesesData.labels} data={mesesData.valores} title="Gastos Mensuales" />
+        {/* Bar Chart dinámica con barra de selección */}
+        <View style={{ width: '100%', alignItems: 'center', marginBottom: 24, paddingHorizontal: 0, justifyContent: 'center' }}>
+          {/* Barra de selección de periodo */}
+          <View style={{ flexDirection: 'row', justifyContent: 'center', marginBottom: 10 }}>
+            {['semanal', 'mensual', 'anual'].map((p) => (
+              <TouchableOpacity
+                key={p}
+                onPress={() => setPeriodoGrafica(p as any)}
+                style={{
+                  backgroundColor: periodoGrafica === p ? '#ffd166' : 'transparent',
+                  borderRadius: 16,
+                  paddingVertical: 6,
+                  paddingHorizontal: 16,
+                  marginHorizontal: 4,
+                  borderWidth: 1,
+                  borderColor: '#ffd166',
+                }}
+              >
+                <Text style={{ color: periodoGrafica === p ? '#23272e' : '#ffd166', fontWeight: 'bold' }}>
+                  {p.charAt(0).toUpperCase() + p.slice(1)}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+          <ScrollView horizontal showsHorizontalScrollIndicator={true} style={{ width: '100%', alignSelf: 'center' }} contentContainerStyle={{ minWidth: 320, maxWidth: 700, justifyContent: 'center', alignItems: 'center' }}>
+            <View style={{ width: Math.min(Math.max(320, gastosGrafica.labels.length * 60), 700), backgroundColor: '#1a1a1a', borderRadius: 12, padding: 12, alignSelf: 'center' }}>
+              {loadingGrafica ? (
+                <ActivityIndicator size="large" color="#ffd166" />
+              ) : (
+                <BarChart
+                  labels={gastosGrafica.labels}
+                  data={gastosGrafica.valores}
+                  title={`Gastos ${periodoGrafica.charAt(0).toUpperCase() + periodoGrafica.slice(1)}`}
+                />
+              )}
+            </View>
+          </ScrollView>
         </View>
 
         {/* Categories Detail */}
@@ -106,7 +204,7 @@ export default function EstadisticasScreen() {
                     <Text className="text-white">{item.categoria}</Text>
                   </View>
                   <View className="flex-row items-center">
-                    <Text className="text-white font-medium mr-2">${item.total.toFixed(2)}</Text>
+                    <Text className="text-white font-medium mr-2">${(Number(item.total) || 0).toFixed(2)}</Text>
                     <Text className="text-xs text-secondary-400">{item.porcentaje}%</Text>
                   </View>
                 </View>

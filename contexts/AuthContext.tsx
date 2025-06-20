@@ -6,7 +6,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage"
 import axios from "axios"
 
 // URL base de la API
-const API_URL = "http://192.168.1.87:8080/api"
+const API_URL = "http://192.168.1.76:8000/api"
 
 interface User {
   id: number
@@ -23,6 +23,7 @@ interface AuthContextType {
   logout: () => Promise<void>
   loading: boolean
   isAuthenticated: boolean
+  updateSaldo: (nuevoSaldo: number) => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -123,6 +124,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
+  // Actualizar el saldo_actual del usuario en el contexto y en AsyncStorage
+  const updateSaldo = async (nuevoSaldo: number) => {
+    if (!user) return
+    const usuarioActualizado = { ...user, saldo_actual: nuevoSaldo }
+    setUser(usuarioActualizado)
+    await AsyncStorage.setItem("user", JSON.stringify(usuarioActualizado))
+  }
+
   return (
     <AuthContext.Provider
       value={{
@@ -133,6 +142,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         logout,
         loading,
         isAuthenticated: !!user && !!token,
+        updateSaldo,
       }}
     >
       {children}

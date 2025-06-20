@@ -7,7 +7,7 @@ import gastosRoutes from "./routes/gastos"
 import usuariosRoutes from "./routes/usuarios"
 
 const app = express()
-const PORT = 8080
+const PORT = 8000
 
 // Middlewares
 app.use(helmet())

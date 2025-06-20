@@ -141,12 +141,26 @@ export class GastoController {
         })
       }
 
+      // Crear el gasto
       const [result] = await pool.execute<ResultSetHeader>(
         `INSERT INTO gastos (descripcion, monto, fecha, categoria_id, usuario_id, notas)
          VALUES (?, ?, ?, ?, ?, ?)`,
         [descripcion, monto, fecha, categoria_id, usuario_id, notas || null],
       )
 
+      // Restar el monto al saldo_actual del usuario
+      await pool.execute(
+        `UPDATE usuarios SET saldo_actual = saldo_actual - ? WHERE id = ?`,
+        [monto, usuario_id],
+      )
+
+      // Obtener usuario actualizado
+      const [usuarios] = await pool.execute<any[]>(
+        `SELECT id, nombre, email, saldo_actual FROM usuarios WHERE id = ?`,
+        [usuario_id],
+      )
+
+      // Obtener gasto creado
       const [gastoCreado] = await pool.execute<GastoRow[]>(
         `SELECT 
           g.id, g.descripcion, g.monto, g.fecha, g.categoria_id, g.usuario_id, g.notas,
@@ -160,7 +174,10 @@ export class GastoController {
       res.status(201).json({
         success: true,
         message: "Gasto creado exitosamente",
-        data: gastoCreado[0],
+        data: {
+          gasto: gastoCreado[0],
+          usuario: usuarios[0],
+        },
       })
     } catch (error) {
       console.error("Error creando gasto:", error)
@@ -240,6 +257,7 @@ export class GastoController {
     try {
       const { id } = req.params
 
+      // Obtener el gasto antes de eliminarlo
       const [gastoRows] = await pool.execute<GastoRow[]>("SELECT * FROM gastos WHERE id = ?", [id])
 
       if (gastoRows.length === 0) {
@@ -249,11 +267,29 @@ export class GastoController {
         })
       }
 
+      const gasto = gastoRows[0]
+
+      // Eliminar el gasto
       await pool.execute("DELETE FROM gastos WHERE id = ?", [id])
+
+      // Sumar el monto al saldo_actual del usuario
+      await pool.execute(
+        "UPDATE usuarios SET saldo_actual = saldo_actual + ? WHERE id = ?",
+        [gasto.monto, gasto.usuario_id],
+      )
+
+      // Obtener usuario actualizado
+      const [usuarios] = await pool.execute<any[]>(
+        "SELECT id, nombre, email, saldo_actual FROM usuarios WHERE id = ?",
+        [gasto.usuario_id],
+      )
 
       res.json({
         success: true,
         message: "Gasto eliminado exitosamente",
+        data: {
+          usuario: usuarios[0],
+        },
       })
     } catch (error) {
       console.error("Error eliminando gasto:", error)
@@ -452,6 +488,19 @@ export class GastoController {
         success: false,
         message: "Error interno del servidor",
       })
+    }
+  }
+
+  // Obtener todas las categorías
+  static async obtenerCategorias(req: Request, res: Response) {
+    try {
+      const [rows] = await pool.execute<RowDataPacket[]>(
+        "SELECT id, nombre, color, icono FROM categorias ORDER BY id ASC"
+      )
+      res.json({ success: true, data: rows })
+    } catch (error) {
+      console.error("Error obteniendo categorías:", error)
+      res.status(500).json({ success: false, message: "Error interno del servidor" })
     }
   }
 }

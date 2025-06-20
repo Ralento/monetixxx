@@ -15,4 +15,6 @@ router.get("/usuario/:usuarioId/estadisticas/categoria", GastoController.obtener
 router.get("/usuario/:usuarioId/estadisticas/tiempo", GastoController.obtenerGastosPorTiempo)
 router.get("/usuario/:usuarioId/resumen", GastoController.obtenerResumenGastos)
 
+router.get("/categorias", GastoController.obtenerCategorias)
+
 export default router

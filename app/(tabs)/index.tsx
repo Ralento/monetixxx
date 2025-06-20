@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator } from "react-native"
+import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator, TextInput, Alert } from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context"
 import { Ionicons } from "@expo/vector-icons"
 import { useAuth } from "../../contexts/AuthContext"
@@ -10,11 +10,13 @@ import { useRouter } from "expo-router"
 import { NuevoGastoModal } from "../../components/gastos/NuevoGastoModal"
 
 export default function HomeScreen() {
-  const { user } = useAuth()
+  const { user, updateSaldo } = useAuth()
   const router = useRouter()
   const [gastos, setGastos] = useState<Gasto[]>([])
   const [loading, setLoading] = useState(true)
   const [modalVisible, setModalVisible] = useState(false)
+  const [nuevoSaldo, setNuevoSaldo] = useState<string>("")
+  const [actualizandoSaldo, setActualizandoSaldo] = useState(false)
 
   useEffect(() => {
     cargarGastos()
@@ -81,6 +83,26 @@ export default function HomeScreen() {
     })
   }
 
+  const handleActualizarSaldo = async () => {
+    if (!user) return
+    const saldoNum = Number(nuevoSaldo)
+    if (nuevoSaldo.trim() === "" || isNaN(saldoNum) || saldoNum < 0) {
+      Alert.alert("Saldo no definido correctamente")
+      return
+    }
+    setActualizandoSaldo(true)
+    try {
+      const usuarioActualizado = await GastoService.actualizarSaldoUsuario(user.id, saldoNum)
+      await updateSaldo(usuarioActualizado.saldo_actual)
+      setNuevoSaldo("")
+      Alert.alert("Saldo actualizado", "Tu saldo se ha actualizado correctamente.")
+    } catch (error) {
+      Alert.alert("Error", "No se pudo actualizar el saldo.")
+    } finally {
+      setActualizandoSaldo(false)
+    }
+  }
+
   return (
     <SafeAreaView className="container">
       <ScrollView className="flex-1 px-4">
@@ -90,9 +112,6 @@ export default function HomeScreen() {
             <Text className="text-title">Hola, {user?.nombre || "Usuario"}</Text>
             <Text className="text-body">Bienvenido a Moentix</Text>
           </View>
-          <TouchableOpacity className="bg-primary-300/20 p-2 rounded-full">
-            <Ionicons name="notifications-outline" size={22} color="#ffd166" />
-          </TouchableOpacity>
         </View>
 
         {/* Balance Card */}
@@ -106,6 +125,27 @@ export default function HomeScreen() {
                   ? Number(user.saldo_actual).toFixed(2)
                   : "0.00"}
               </Text>
+              <View className="flex-row items-center mt-2">
+                <TextInput
+                  className="bg-secondary-700 text-white px-2 py-1 rounded mr-2"
+                  style={{ minWidth: 80 }}
+                  placeholder="Nuevo saldo"
+                  placeholderTextColor="#aaa"
+                  keyboardType="numeric"
+                  value={nuevoSaldo}
+                  onChangeText={setNuevoSaldo}
+                  editable={!actualizandoSaldo}
+                />
+                <TouchableOpacity
+                  className="btn-primary px-3 py-1 rounded"
+                  onPress={handleActualizarSaldo}
+                  disabled={actualizandoSaldo}
+                >
+                  <Text className="text-secondary-900 font-medium">
+                    {actualizandoSaldo ? "Guardando..." : "Actualizar"}
+                  </Text>
+                </TouchableOpacity>
+              </View>
             </View>
             <View className="bg-primary-300/20 p-2 rounded-full">
               <Ionicons name="wallet-outline" size={24} color="#ffd166" />
@@ -115,11 +155,8 @@ export default function HomeScreen() {
 
         {/* Quick Actions */}
         <View className="flex-row justify-between mb-6">
-          <TouchableOpacity className="btn-primary flex-1 mr-2 items-center" onPress={() => setModalVisible(true)}>
-            <Text className="text-secondary-900 font-medium">Agregar Gasto</Text>
-          </TouchableOpacity>
           <TouchableOpacity
-            className="btn-secondary flex-1 ml-2 items-center"
+            className="btn-secondary flex-1 items-center"
             onPress={() => router.push("/(tabs)/estadisticas")}
           >
             <Text className="text-primary-300 font-medium">Ver Estadísticas</Text>
@@ -152,7 +189,7 @@ export default function HomeScreen() {
                         <Text className="text-sm text-secondary-400">{formatFecha(gasto.fecha)}</Text>
                       </View>
                     </View>
-                    <Text className="text-primary-300 font-bold">-${gasto.monto.toFixed(2)}</Text>
+                    <Text className="text-primary-300 font-bold">-${(Number(gasto.monto) || 0).toFixed(2)}</Text>
                   </View>
                 </View>
               )
@@ -168,9 +205,9 @@ export default function HomeScreen() {
             <View className="bg-primary-300/20 p-2 rounded-full mr-3">
               <Ionicons name="bulb-outline" size={20} color="#ffd166" />
             </View>
-            <View>
+            <View style={{ flex: 1 }}>
               <Text className="text-primary-300 font-medium mb-1">Consejo del día</Text>
-              <Text className="text-secondary-300 text-sm">
+              <Text className="text-secondary-300 text-sm" style={{ flexWrap: 'wrap', flexShrink: 1, flex: 1, lineHeight: 18 }}>
                 Registra tus gastos diariamente para tener un mejor control de tus finanzas.
               </Text>
             </View>

@@ -1,23 +1,32 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator, Alert } from "react-native"
+import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator, Alert, LayoutAnimation, Platform, UIManager } from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context"
 import { Ionicons } from "@expo/vector-icons"
 import { useAuth } from "../../contexts/AuthContext"
 import { GastoService, type Gasto } from "../../services/GastoService"
 import { NuevoGastoModal } from "../../components/gastos/NuevoGastoModal"
 
+// Habilitar animaciones en Android
+if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+  UIManager.setLayoutAnimationEnabledExperimental(true);
+}
+
 export default function GastosScreen() {
-  const { user } = useAuth()
+  const { user, updateSaldo } = useAuth()
   const [gastos, setGastos] = useState<Gasto[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [modalVisible, setModalVisible] = useState(false)
   const [filtroCategoria, setFiltroCategoria] = useState<number | null>(null)
+  const [categoriaExpandida, setCategoriaExpandida] = useState<number | null>(null)
+  const [categorias, setCategorias] = useState<any[]>([])
+  const [todosExpandido, setTodosExpandido] = useState(false)
 
   useEffect(() => {
     cargarGastos()
+    cargarCategorias()
   }, [])
 
   const cargarGastos = async () => {
@@ -36,6 +45,15 @@ export default function GastosScreen() {
     }
   }
 
+  const cargarCategorias = async () => {
+    try {
+      const data = await GastoService.obtenerCategorias()
+      setCategorias(data)
+    } catch (err) {
+      setCategorias([])
+    }
+  }
+
   const handleEliminarGasto = async (id: number) => {
     Alert.alert("Eliminar Gasto", "¿Estás seguro que deseas eliminar este gasto?", [
       { text: "Cancelar", style: "cancel" },
@@ -44,7 +62,8 @@ export default function GastosScreen() {
         style: "destructive",
         onPress: async () => {
           try {
-            await GastoService.eliminarGasto(id)
+            const { usuario } = await GastoService.eliminarGasto(id)
+            await updateSaldo(usuario.saldo_actual)
             cargarGastos() // Recargar la lista
           } catch (error) {
             Alert.alert("Error", "No se pudo eliminar el gasto")
@@ -103,6 +122,13 @@ export default function GastosScreen() {
 
   const gastosFiltrados = filtroCategoria ? gastos.filter((g) => g.categoria_id === filtroCategoria) : gastos
 
+  // Agrupar gastos por categoría
+  const gastosPorCategoria: { [key: number]: Gasto[] } = {}
+  gastos.forEach((g) => {
+    if (!gastosPorCategoria[g.categoria_id]) gastosPorCategoria[g.categoria_id] = []
+    gastosPorCategoria[g.categoria_id].push(g)
+  })
+
   return (
     <SafeAreaView className="container">
       <View className="flex-1 px-4">
@@ -114,93 +140,95 @@ export default function GastosScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* Filters */}
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mb-4">
-          <View className="flex-row space-x-2">
+        {/* Lista de categorías y gastos */}
+        <View className="mb-6">
+          <Text className="text-title mb-4">Gastos por Categoría</Text>
+
+          {/* Apartado TODOS */}
+          <View className="mb-2">
             <TouchableOpacity
-              className={`px-3 py-1 rounded-full ${filtroCategoria === null ? "bg-primary-300" : "bg-secondary-700"}`}
-              onPress={() => setFiltroCategoria(null)}
+              className="flex-row items-center px-4 py-3 bg-secondary-800 rounded-lg border border-primary-300/30"
+              onPress={() => {
+                LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut)
+                setTodosExpandido(!todosExpandido)
+                setCategoriaExpandida(null)
+              }}
             >
-              <Text className={`font-medium ${filtroCategoria === null ? "text-secondary-900" : "text-white"}`}>
-                Todos
-              </Text>
+              <Ionicons name="apps-outline" size={22} color="#ffd166" style={{ marginRight: 12 }} />
+              <Text className="text-white font-medium text-lg flex-1">Todos</Text>
+              <Ionicons name={todosExpandido ? "chevron-up-outline" : "chevron-down-outline"} size={20} color="#ffd166" />
             </TouchableOpacity>
+            {todosExpandido && (
+              <View className="bg-secondary-900 rounded-b-lg px-4 py-2 mt-1">
+                {gastos.length === 0 ? (
+                  <Text className="text-secondary-400 text-center py-2">No hay gastos registrados</Text>
+                ) : (
+                  gastos.map((gasto) => {
+                    const cat = categorias.find((c) => c.id === gasto.categoria_id)
+                    return (
+                      <View key={gasto.id} className="flex-row items-center py-2 border-b border-secondary-700 last:border-b-0">
+                        <Ionicons name={cat?.icono as any} size={18} color={cat?.color || "#ffd166"} style={{ marginRight: 10 }} />
+                        <View className="flex-1">
+                          <Text className="text-white font-medium">{gasto.descripcion}</Text>
+                          <Text className="text-xs text-secondary-400">{formatFecha(gasto.fecha)} - {cat?.nombre}</Text>
+                        </View>
+                        <Text className="text-primary-300 font-bold ml-2">-${(Number(gasto.monto) || 0).toFixed(2)}</Text>
+                        <TouchableOpacity onPress={() => handleEliminarGasto(gasto.id)} className="ml-2">
+                          <Ionicons name="trash-outline" size={18} color="#999999" />
+                        </TouchableOpacity>
+                      </View>
+                    )
+                  })
+                )}
+              </View>
+            )}
+          </View>
 
-            {[1, 2, 3, 4, 5, 6].map((catId) => {
-              return (
+          {/* Apartados por categoría */}
+          {categorias.map((cat) => {
+            const gastosCat = gastosPorCategoria[cat.id] || []
+            const expandida = categoriaExpandida === cat.id
+            return (
+              <View key={cat.id} className="mb-2">
                 <TouchableOpacity
-                  key={catId}
-                  className={`px-3 py-1 rounded-full ${filtroCategoria === catId ? "bg-primary-300" : "bg-secondary-700"}`}
-                  onPress={() => setFiltroCategoria(catId)}
+                  className="flex-row items-center px-4 py-3 bg-secondary-800 rounded-lg border border-primary-300/30"
+                  onPress={() => {
+                    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut)
+                    setCategoriaExpandida(expandida ? null : cat.id)
+                  }}
                 >
-                  <Text className={`font-medium ${filtroCategoria === catId ? "text-secondary-900" : "text-white"}`}>
-                    {catId === 1
-                      ? "Comida"
-                      : catId === 2
-                        ? "Transporte"
-                        : catId === 3
-                          ? "Entretenimiento"
-                          : catId === 4
-                            ? "Salud"
-                            : catId === 5
-                              ? "Compras"
-                              : "Otros"}
-                  </Text>
+                  <Ionicons name={cat.icono as any} size={22} color={cat.color || "#ffd166"} style={{ marginRight: 12 }} />
+                  <Text className="text-white font-medium text-lg flex-1">{cat.nombre}</Text>
+                  <Ionicons name={expandida ? "chevron-up-outline" : "chevron-down-outline"} size={20} color="#ffd166" />
                 </TouchableOpacity>
-              )
-            })}
-          </View>
-        </ScrollView>
-
-        {/* Expense List */}
-        {loading ? (
-          <View className="flex-1 justify-center items-center">
-            <ActivityIndicator size="large" color="#ffd166" />
-            <Text className="text-secondary-400 mt-2">Cargando gastos...</Text>
-          </View>
-        ) : error ? (
-          <View className="flex-1 justify-center items-center">
-            <Ionicons name="alert-circle-outline" size={48} color="#ef4444" />
-            <Text className="text-danger-600 mt-2">{error}</Text>
-          </View>
-        ) : gastosFiltrados.length === 0 ? (
-          <View className="flex-1 justify-center items-center">
-            <Ionicons name="receipt-outline" size={48} color="#999999" />
-            <Text className="text-secondary-400 mt-2">No hay gastos registrados</Text>
-          </View>
-        ) : (
-          <ScrollView className="flex-1">
-            {gastosFiltrados.map((gasto) => {
-              const { icono, color, bg } = getIconoCategoria(gasto.categoria_id)
-              return (
-                <View key={gasto.id} className={`gasto-item ${getClaseGasto(gasto.categoria_id)} mb-2`}>
-                  <View className="flex-row justify-between items-center">
-                    <View className="flex-row items-center flex-1">
-                      <View className={`${bg} p-2 rounded-full mr-3`}>
-                        <Ionicons name={icono as any} size={20} color={color} />
-                      </View>
-                      <View className="flex-1">
-                        <Text className="text-white font-medium">{gasto.descripcion}</Text>
-                        <Text className="text-sm text-secondary-400">{formatFecha(gasto.fecha)}</Text>
-                        <Text className="text-xs text-primary-300">{gasto.categoria_nombre || "Categoría"}</Text>
-                      </View>
-                    </View>
-                    <View className="flex-row items-center">
-                      <Text className="text-primary-300 font-bold mr-2">-${gasto.monto.toFixed(2)}</Text>
-                      <TouchableOpacity onPress={() => handleEliminarGasto(gasto.id)}>
-                        <Ionicons name="trash-outline" size={18} color="#999999" />
-                      </TouchableOpacity>
-                    </View>
+                {expandida && (
+                  <View className="bg-secondary-900 rounded-b-lg px-4 py-2 mt-1">
+                    {gastosCat.length === 0 ? (
+                      <Text className="text-secondary-400 text-center py-2">No hay gastos en esta categoría</Text>
+                    ) : (
+                      gastosCat.map((gasto) => (
+                        <View key={gasto.id} className="flex-row justify-between items-center py-2 border-b border-secondary-700 last:border-b-0">
+                          <View className="flex-1">
+                            <Text className="text-white font-medium">{gasto.descripcion}</Text>
+                            <Text className="text-xs text-secondary-400">{formatFecha(gasto.fecha)}</Text>
+                          </View>
+                          <Text className="text-primary-300 font-bold ml-2">-${(Number(gasto.monto) || 0).toFixed(2)}</Text>
+                          <TouchableOpacity onPress={() => handleEliminarGasto(gasto.id)} className="ml-2">
+                            <Ionicons name="trash-outline" size={18} color="#999999" />
+                          </TouchableOpacity>
+                        </View>
+                      ))
+                    )}
                   </View>
-                </View>
-              )
-            })}
-          </ScrollView>
-        )}
-      </View>
+                )}
+              </View>
+            )
+          })}
+        </View>
 
-      {/* Modal para nuevo gasto */}
-      <NuevoGastoModal visible={modalVisible} onClose={() => setModalVisible(false)} onSuccess={cargarGastos} />
+        {/* Modal para nuevo gasto */}
+        <NuevoGastoModal visible={modalVisible} onClose={() => setModalVisible(false)} onSuccess={cargarGastos} />
+      </View>
     </SafeAreaView>
   )
 }

@@ -1,6 +1,6 @@
 import axios from "axios"
 
-const API_URL = "http://192.168.1.87:8080/api"
+const API_URL = "http://192.168.1.76:8000/api"
 
 export interface Gasto {
   id: number
@@ -50,7 +50,7 @@ export class GastoService {
   static async eliminarGasto(id: number) {
     try {
       const response = await axios.delete(`${API_URL}/gastos/${id}`)
-      return response.data
+      return response.data.data
     } catch (error) {
       console.error("Error eliminando gasto:", error)
       throw error
@@ -64,6 +64,72 @@ export class GastoService {
       return response.data.data
     } catch (error) {
       console.error("Error obteniendo estadísticas por categoría:", error)
+      throw error
+    }
+  }
+
+  // Actualizar el saldo_actual del usuario
+  static async actualizarSaldoUsuario(usuarioId: number, saldo_actual: number) {
+    try {
+      const response = await axios.put(`${API_URL}/usuarios/saldo/${usuarioId}`, { saldo_actual })
+      return response.data.data
+    } catch (error) {
+      console.error("Error actualizando saldo:", error)
+      throw error
+    }
+  }
+
+  // Obtener todas las categorías
+  static async obtenerCategorias() {
+    try {
+      const response = await axios.get(`${API_URL}/gastos/categorias`)
+      return response.data.data
+    } catch (error) {
+      console.error("Error obteniendo categorías:", error)
+      throw error
+    }
+  }
+
+  // Obtener gastos mensuales para la gráfica
+  static async obtenerGastosPorMes(usuarioId: number) {
+    try {
+      const response = await axios.get(`${API_URL}/gastos/usuario/${usuarioId}/estadisticas/tiempo?periodo=mensual`)
+      return response.data.data
+    } catch (error) {
+      console.error("Error obteniendo gastos mensuales:", error)
+      throw error
+    }
+  }
+
+  // Obtener gastos por periodo para la gráfica
+  static async obtenerGastosPorPeriodo(usuarioId: number, periodo: 'mensual' | 'semanal' | 'anual') {
+    try {
+      const response = await axios.get(`${API_URL}/gastos/usuario/${usuarioId}/estadisticas/tiempo?periodo=${periodo}`)
+      return response.data.data
+    } catch (error) {
+      console.error("Error obteniendo gastos por periodo:", error)
+      throw error
+    }
+  }
+
+  // Actualizar datos personales del usuario
+  static async actualizarDatosPersonales(usuarioId: number, nombre: string, email: string) {
+    try {
+      const response = await axios.put(`${API_URL}/usuarios/datos/${usuarioId}`, { nombre, email })
+      return response.data.data
+    } catch (error) {
+      console.error("Error actualizando datos personales:", error)
+      throw error
+    }
+  }
+
+  // Cambiar contraseña del usuario
+  static async cambiarContrasena(usuarioId: number, actual: string, nueva: string) {
+    try {
+      const response = await axios.put(`${API_URL}/usuarios/contrasena/${usuarioId}`, { actual, nueva })
+      return response.data
+    } catch (error) {
+      console.error("Error cambiando contraseña:", error)
       throw error
     }
   }

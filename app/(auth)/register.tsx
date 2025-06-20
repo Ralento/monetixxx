@@ -15,6 +15,7 @@ export default function RegisterScreen() {
   const [loading, setLoading] = useState(false)
   const { register } = useAuth()
   const router = useRouter()
+  const [showPassword, setShowPassword] = useState(false)
 
   const handleRegister = async () => {
     if (!nombre || !email || !password) {
@@ -86,15 +87,27 @@ export default function RegisterScreen() {
 
               <View>
                 <Text className="text-body mb-1">Contraseña</Text>
-                <TextInput
-                  className="input-field"
-                  value={password}
-                  onChangeText={setPassword}
-                  placeholder="••••••••"
-                  placeholderTextColor="#666666"
-                  secureTextEntry
-                />
+                <View style={{ position: 'relative' }}>
+                  <TextInput
+                    className="input-field"
+                    value={password}
+                    onChangeText={setPassword}
+                    placeholder="••••••••"
+                    placeholderTextColor="#666666"
+                    secureTextEntry={!showPassword}
+                    style={{ paddingRight: 40 }}
+                  />
+                  <Ionicons
+                    name={showPassword ? "eye-off-outline" : "eye-outline"}
+                    size={22}
+                    color="#ffd166"
+                    style={{ position: 'absolute', right: 10, top: '50%', marginTop: -11 }}
+                    onPress={() => setShowPassword((prev) => !prev)}
+                  />
+                </View>
               </View>
+
+              <View style={{ height: 16 }} />
 
               <Button title="Crear Cuenta" onPress={handleRegister} loading={loading} variant="primary" />
 

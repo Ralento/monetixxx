@@ -23,7 +23,7 @@ const categorias = [
 ]
 
 export function NuevoGastoModal({ visible, onClose, onSuccess }: NuevoGastoModalProps) {
-  const { user } = useAuth()
+  const { user, updateSaldo } = useAuth()
   const [descripcion, setDescripcion] = useState("")
   const [monto, setMonto] = useState("")
   const [categoriaId, setCategoriaId] = useState<number | null>(null)
@@ -49,13 +49,15 @@ export function NuevoGastoModal({ visible, onClose, onSuccess }: NuevoGastoModal
 
     setLoading(true)
     try {
-      await GastoService.crearGasto({
+      const { gasto, usuario } = await GastoService.crearGasto({
         descripcion,
         monto: montoNum,
         fecha: new Date().toISOString().split("T")[0], // Formato YYYY-MM-DD
         categoria_id: categoriaId,
         usuario_id: user.id,
       })
+      // Actualizar saldo en el contexto
+      await updateSaldo(usuario.saldo_actual)
 
       Alert.alert("Éxito", "Gasto registrado correctamente")
       resetForm()

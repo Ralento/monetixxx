@@ -132,7 +132,7 @@ export class GastoController {
   // Crear nuevo gasto
   static async crearGasto(req: Request, res: Response) {
     try {
-      const { descripcion, monto, fecha, categoria_id, usuario_id, notas } = req.body
+      const { descripcion, monto, fecha, categoria_id, usuario_id, notas, periodo = 'mensual' } = req.body
 
       if (!descripcion || !monto || !fecha || !categoria_id || !usuario_id) {
         return res.status(400).json({
@@ -155,10 +155,12 @@ export class GastoController {
         [descripcion, monto, fecha, categoria_id, usuario_id, notas || null],
       )
 
-      // Restar el monto al saldo_actual del usuario
+      // Restar el monto al saldo del periodo correspondiente
       await pool.execute(
-        `UPDATE usuarios SET saldo_actual = saldo_actual - ? WHERE id = ?`,
-        [monto, usuario_id],
+        `INSERT INTO saldos_usuario (usuario_id, periodo, saldo)
+         VALUES (?, ?, ?)
+         ON DUPLICATE KEY UPDATE saldo = saldo - VALUES(saldo), fecha_actualizacion = CURRENT_TIMESTAMP`,
+        [usuario_id, periodo, monto]
       )
 
       // Obtener usuario actualizado
@@ -279,10 +281,39 @@ export class GastoController {
       // Eliminar el gasto
       await pool.execute("DELETE FROM gastos WHERE id = ?", [id])
 
-      // Sumar el monto al saldo_actual del usuario
+      // Detectar el periodo real del gasto según la fecha
+      let periodo = 'mensual'
+      if (gasto.fecha) {
+        const fecha = new Date(gasto.fecha)
+        const hoy = new Date()
+        // Si el gasto es de la misma semana que hoy
+        const getWeek = (d: Date) => {
+          const date = new Date(d.getTime())
+          date.setHours(0, 0, 0, 0)
+          // Jueves es el 4to día de la semana
+          date.setDate(date.getDate() + 4 - (date.getDay() || 7))
+          const yearStart = new Date(date.getFullYear(), 0, 1)
+          return Math.ceil((((date.getTime() - yearStart.getTime()) / 86400000) + 1) / 7)
+        }
+        if (fecha.getFullYear() === hoy.getFullYear()) {
+          if (getWeek(fecha) === getWeek(hoy)) {
+            periodo = 'semanal'
+          } else if (fecha.getMonth() === hoy.getMonth()) {
+            periodo = 'mensual'
+          } else {
+            periodo = 'anual'
+          }
+        } else {
+          periodo = 'anual'
+        }
+      }
+
+      // Sumar el monto al saldo del periodo correspondiente
       await pool.execute(
-        "UPDATE usuarios SET saldo_actual = saldo_actual + ? WHERE id = ?",
-        [gasto.monto, gasto.usuario_id],
+        `INSERT INTO saldos_usuario (usuario_id, periodo, saldo)
+         VALUES (?, ?, ?)
+         ON DUPLICATE KEY UPDATE saldo = saldo + VALUES(saldo), fecha_actualizacion = CURRENT_TIMESTAMP`,
+        [gasto.usuario_id, periodo, gasto.monto]
       )
 
       // Obtener usuario actualizado

@@ -402,4 +402,35 @@ export class UsuarioController {
       });
     }
   }
+
+  // Obtener saldo por periodo
+  static async obtenerSaldoPorPeriodo(req: Request, res: Response) {
+    try {
+      const { usuarioId, periodo } = req.params;
+      const [rows] = await pool.execute(
+        "SELECT saldo FROM saldos_usuario WHERE usuario_id = ? AND periodo = ?",
+        [usuarioId, periodo]
+      );
+      res.json({ success: true, saldo: (rows as any)[0]?.saldo ?? 0 });
+    } catch (error) {
+      res.status(500).json({ success: false, message: 'Error interno del servidor' });
+    }
+  }
+
+  // Actualizar saldo por periodo
+  static async actualizarSaldoPorPeriodo(req: Request, res: Response) {
+    try {
+      const { usuarioId, periodo } = req.params;
+      const { saldo } = req.body;
+      await pool.execute(
+        `INSERT INTO saldos_usuario (usuario_id, periodo, saldo)
+         VALUES (?, ?, ?)
+         ON DUPLICATE KEY UPDATE saldo = VALUES(saldo), fecha_actualizacion = CURRENT_TIMESTAMP`,
+        [usuarioId, periodo, saldo]
+      );
+      res.json({ success: true, message: 'Saldo actualizado correctamente' });
+    } catch (error) {
+      res.status(500).json({ success: false, message: 'Error interno del servidor' });
+    }
+  }
 }

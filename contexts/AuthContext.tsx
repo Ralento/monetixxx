@@ -1,16 +1,13 @@
 "use client"
 
 import type React from "react"
-import { createContext, useContext, useState, useEffect } from "react"
+import { createContext, useContext, useState, useEffect, useCallback } from "react"
 import AsyncStorage from "@react-native-async-storage/async-storage"
 import axios from "axios"
+import { GastoService } from "../services/GastoService"
 
 // URL base de la API
-<<<<<<< HEAD
 const API_URL = "http://192.168.1.76:8000/api"
-=======
-const API_URL = "http://192.168.1.105:8080/api"
->>>>>>> d3590c377b705eac276c9fd660f204c517e2cdd2
 
 interface User {
   id: number
@@ -28,6 +25,13 @@ interface AuthContextType {
   loading: boolean
   isAuthenticated: boolean
   updateSaldo: (nuevoSaldo: number) => Promise<void>
+  triggerStatsUpdate: () => void
+  statsUpdateFlag: number
+  periodoSaldo: 'semanal' | 'mensual' | 'anual'
+  setPeriodoSaldo: (p: 'semanal' | 'mensual' | 'anual') => void
+  saldosPorPeriodo: Record<'semanal' | 'mensual' | 'anual', number>
+  setSaldoPorPeriodo: (p: 'semanal' | 'mensual' | 'anual', saldo: number) => Promise<void>
+  recargarSaldoPeriodo: (usuarioId: number, periodo: 'semanal' | 'mensual' | 'anual') => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -36,9 +40,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [token, setToken] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
+  const [statsUpdateFlag, setStatsUpdateFlag] = useState(0)
+  const [periodoSaldo, setPeriodoSaldoState] = useState<'semanal' | 'mensual' | 'anual'>('mensual')
+  const [saldosPorPeriodo, setSaldosPorPeriodo] = useState<Record<'semanal' | 'mensual' | 'anual', number>>({ semanal: 0, mensual: 0, anual: 0 })
 
   useEffect(() => {
     checkAuthState()
+    AsyncStorage.getItem('periodoSaldo').then((p) => {
+      if (p === 'semanal' || p === 'mensual' || p === 'anual') setPeriodoSaldoState(p)
+    })
+    // Leer saldos por periodo
+    AsyncStorage.getItem('saldosPorPeriodo').then((s) => {
+      if (s) {
+        try {
+          const obj = JSON.parse(s)
+          setSaldosPorPeriodo({ semanal: obj.semanal || 0, mensual: obj.mensual || 0, anual: obj.anual || 0 })
+        } catch {}
+      }
+    })
   }, [])
 
   const checkAuthState = async () => {
@@ -136,6 +155,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await AsyncStorage.setItem("user", JSON.stringify(usuarioActualizado))
   }
 
+  const triggerStatsUpdate = useCallback(() => {
+    setStatsUpdateFlag((prev) => prev + 1)
+  }, [])
+
+  const setPeriodoSaldo = (p: 'semanal' | 'mensual' | 'anual') => {
+    setPeriodoSaldoState(p)
+    AsyncStorage.setItem('periodoSaldo', p)
+  }
+
+  const setSaldoPorPeriodo = async (p: 'semanal' | 'mensual' | 'anual', saldo: number) => {
+    setSaldosPorPeriodo((prev) => {
+      const nuevo = { ...prev, [p]: saldo }
+      AsyncStorage.setItem('saldosPorPeriodo', JSON.stringify(nuevo))
+      return nuevo
+    })
+  }
+
+  // Nueva función para recargar el saldo del periodo desde el backend
+  const recargarSaldoPeriodo = async (usuarioId: number, periodo: 'semanal' | 'mensual' | 'anual') => {
+    try {
+      const saldo = await GastoService.obtenerSaldoPorPeriodo(usuarioId, periodo)
+      setSaldosPorPeriodo((prev) => ({ ...prev, [periodo]: saldo }))
+    } catch {}
+  }
+
   return (
     <AuthContext.Provider
       value={{
@@ -147,6 +191,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         loading,
         isAuthenticated: !!user && !!token,
         updateSaldo,
+        triggerStatsUpdate,
+        statsUpdateFlag,
+        periodoSaldo,
+        setPeriodoSaldo,
+        saldosPorPeriodo,
+        setSaldoPorPeriodo,
+        recargarSaldoPeriodo,
       }}
     >
       {children}

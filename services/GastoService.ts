@@ -11,6 +11,7 @@ export interface Gasto {
   categoria_nombre?: string
   categoria_color?: string
   categoria_icono?: string
+  periodo?: 'semanal' | 'mensual' | 'anual'
 }
 
 export interface EstadisticaCategoria {
@@ -129,6 +130,28 @@ export class GastoService {
       return response.data
     } catch (error) {
       console.error("Error cambiando contraseña:", error)
+      throw error
+    }
+  }
+
+  // Obtener saldo por periodo
+  static async obtenerSaldoPorPeriodo(usuarioId: number, periodo: 'semanal' | 'mensual' | 'anual') {
+    try {
+      const response = await axios.get(`${API_URL}/usuarios/saldos/${usuarioId}/${periodo}`)
+      return response.data.saldo
+    } catch (error) {
+      console.error('Error obteniendo saldo por periodo:', error)
+      throw error
+    }
+  }
+
+  // Actualizar saldo por periodo
+  static async actualizarSaldoPorPeriodo(usuarioId: number, periodo: 'semanal' | 'mensual' | 'anual', saldo: number) {
+    try {
+      const response = await axios.put(`${API_URL}/usuarios/saldos/${usuarioId}/${periodo}`, { saldo })
+      return response.data
+    } catch (error) {
+      console.error('Error actualizando saldo por periodo:', error)
       throw error
     }
   }

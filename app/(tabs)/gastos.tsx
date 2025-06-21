@@ -14,7 +14,7 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
 }
 
 export default function GastosScreen() {
-  const { user, updateSaldo } = useAuth()
+  const { user, updateSaldo, triggerStatsUpdate } = useAuth()
   const [gastos, setGastos] = useState<Gasto[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -65,6 +65,7 @@ export default function GastosScreen() {
             const { usuario } = await GastoService.eliminarGasto(id)
             await updateSaldo(usuario.saldo_actual)
             cargarGastos() // Recargar la lista
+            triggerStatsUpdate() // Notificar globalmente
           } catch (error) {
             Alert.alert("Error", "No se pudo eliminar el gasto")
           }

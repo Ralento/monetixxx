@@ -9,7 +9,7 @@ import { GastoService } from "../../services/GastoService"
 import { useState } from "react"
 
 export default function PerfilScreen() {
-  const { user, logout } = useAuth()
+  const { user, logout, periodoSaldo, saldosPorPeriodo } = useAuth()
   const router = useRouter()
   const [editVisible, setEditVisible] = useState(false)
   const [editNombre, setEditNombre] = useState(user?.nombre || "")
@@ -229,7 +229,10 @@ export default function PerfilScreen() {
           <View className="flex-row justify-between items-center">
             <View>
               <Text className="text-secondary-300 text-xs mb-1">Saldo Actual</Text>
-              <Text className="text-primary-300 text-2xl font-bold">{user?.saldo_actual}</Text>
+              <Text className="text-primary-300 text-2xl font-bold">$
+                {saldosPorPeriodo[periodoSaldo] != null ? Number(saldosPorPeriodo[periodoSaldo]).toFixed(2) : "0.00"}
+                <Text className="text-xs text-primary-300 ml-4">({periodoSaldo.charAt(0).toUpperCase() + periodoSaldo.slice(1)})</Text>
+              </Text>
               <Text className="text-secondary-400 text-xs">Última actualización: Hoy</Text>
             </View>
             <View className="bg-primary-300/20 p-2 rounded-full">

@@ -23,7 +23,7 @@ const categorias = [
 ]
 
 export function NuevoGastoModal({ visible, onClose, onSuccess }: NuevoGastoModalProps) {
-  const { user, updateSaldo } = useAuth()
+  const { user, updateSaldo, triggerStatsUpdate, recargarSaldoPeriodo, periodoSaldo } = useAuth()
   const [descripcion, setDescripcion] = useState("")
   const [monto, setMonto] = useState("")
   const [categoriaId, setCategoriaId] = useState<number | null>(null)
@@ -55,10 +55,11 @@ export function NuevoGastoModal({ visible, onClose, onSuccess }: NuevoGastoModal
         fecha: new Date().toISOString().split("T")[0], // Formato YYYY-MM-DD
         categoria_id: categoriaId,
         usuario_id: user.id,
+        periodo: periodoSaldo,
       })
-      // Actualizar saldo en el contexto
-      await updateSaldo(usuario.saldo_actual)
-
+      // Recargar saldo del periodo desde el backend
+      await recargarSaldoPeriodo(user.id, periodoSaldo)
+      triggerStatsUpdate()
       Alert.alert("Éxito", "Gasto registrado correctamente")
       resetForm()
       onSuccess()

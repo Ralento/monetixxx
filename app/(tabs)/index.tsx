@@ -10,7 +10,7 @@ import { useRouter } from "expo-router"
 import { NuevoGastoModal } from "../../components/gastos/NuevoGastoModal"
 
 export default function HomeScreen() {
-  const { user, updateSaldo } = useAuth()
+  const { user, updateSaldo, statsUpdateFlag, periodoSaldo, setPeriodoSaldo, saldosPorPeriodo, setSaldoPorPeriodo } = useAuth()
   const router = useRouter()
   const [gastos, setGastos] = useState<Gasto[]>([])
   const [loading, setLoading] = useState(true)
@@ -20,7 +20,8 @@ export default function HomeScreen() {
 
   useEffect(() => {
     cargarGastos()
-  }, [])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [statsUpdateFlag])
 
   const cargarGastos = async () => {
     if (!user) return
@@ -92,10 +93,12 @@ export default function HomeScreen() {
     }
     setActualizandoSaldo(true)
     try {
-      const usuarioActualizado = await GastoService.actualizarSaldoUsuario(user.id, saldoNum)
-      await updateSaldo(usuarioActualizado.saldo_actual)
+      await setSaldoPorPeriodo(periodoSaldo, saldoNum)
       setNuevoSaldo("")
-      Alert.alert("Saldo actualizado", "Tu saldo se ha actualizado correctamente.")
+      Alert.alert(
+        "Saldo actualizado",
+        `Tu saldo (${periodoSaldo}) se ha actualizado correctamente.`
+      )
     } catch (error) {
       Alert.alert("Error", "No se pudo actualizar el saldo.")
     } finally {
@@ -116,15 +119,40 @@ export default function HomeScreen() {
 
         {/* Balance Card */}
         <View className="card bg-secondary-800 border border-primary-300 mb-6">
-          <View className="flex-row justify-between items-center">
-            <View>
+          <View className="flex-row justify-between items-start">
+            <View style={{ flex: 1 }}>
               <Text className="text-secondary-300 text-sm mb-1">Saldo Actual</Text>
-              <Text className="text-primary-300 text-2xl font-bold">
-                $
-                {user?.saldo_actual != null
-                  ? Number(user.saldo_actual).toFixed(2)
-                  : "0.00"}
-              </Text>
+              <View className="flex-row items-center">
+                <Text className="text-primary-300 text-2xl font-bold mr-2">
+                  $
+                  {saldosPorPeriodo[periodoSaldo] != null
+                    ? Number(saldosPorPeriodo[periodoSaldo]).toFixed(2)
+                    : "0.00"}
+                </Text>
+                <View className="flex-row items-center" style={{ maxWidth: 220, flexWrap: 'wrap', gap: 2 }}>
+                  {['semanal', 'mensual', 'anual'].map((p) => (
+                    <TouchableOpacity
+                      key={p}
+                      onPress={() => setPeriodoSaldo(p as any)}
+                      style={{
+                        backgroundColor: periodoSaldo === p ? '#ffd166' : 'transparent',
+                        borderRadius: 12,
+                        paddingVertical: 4,
+                        paddingHorizontal: 8,
+                        marginHorizontal: 1,
+                        borderWidth: 1,
+                        borderColor: '#ffd166',
+                        minWidth: 56,
+                        alignItems: 'center',
+                      }}
+                    >
+                      <Text style={{ color: periodoSaldo === p ? '#23272e' : '#ffd166', fontWeight: 'bold', fontSize: 12 }}>
+                        {p.charAt(0).toUpperCase() + p.slice(1)}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
               <View className="flex-row items-center mt-2">
                 <TextInput
                   className="bg-secondary-700 text-white px-2 py-1 rounded mr-2"
@@ -137,18 +165,16 @@ export default function HomeScreen() {
                   editable={!actualizandoSaldo}
                 />
                 <TouchableOpacity
-                  className="btn-primary px-3 py-1 rounded"
+                  className="btn-secondary px-4 py-2 rounded-lg font-medium ml-2"
                   onPress={handleActualizarSaldo}
                   disabled={actualizandoSaldo}
+                  style={{ minWidth: 120, alignSelf: 'center' }}
                 >
-                  <Text className="text-secondary-900 font-medium">
+                  <Text className="text-primary-300 font-medium text-center w-full">
                     {actualizandoSaldo ? "Guardando..." : "Actualizar"}
                   </Text>
                 </TouchableOpacity>
               </View>
-            </View>
-            <View className="bg-primary-300/20 p-2 rounded-full">
-              <Ionicons name="wallet-outline" size={24} color="#ffd166" />
             </View>
           </View>
         </View>
@@ -178,24 +204,20 @@ export default function HomeScreen() {
             gastos.map((gasto) => {
               const { icono, color, bg } = getIconoCategoria(gasto.categoria_id)
               return (
-              <View key={gasto.id} className={`gasto-item ${getClaseGasto(gasto.categoria_id)} mb-2`}>
-                <View className="flex-row justify-between items-center">
-                  <View className="flex-row items-center">
-                    <View className={`${bg} p-2 rounded-full mr-3`}>
-                      <Ionicons name={icono as any} size={18} color={color} />
+                <View key={gasto.id} className={`gasto-item ${getClaseGasto(gasto.categoria_id)} mb-2`}>
+                  <View className="flex-row justify-between items-center">
+                    <View className="flex-row items-center flex-1">
+                      <View className={`${bg} p-2 rounded-full mr-3`}>
+                        <Ionicons name={icono as any} size={18} color={color} />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text className="text-white font-medium">{gasto.descripcion}</Text>
+                        <Text className="text-sm text-secondary-400">{formatFecha(gasto.fecha)}</Text>
+                      </View>
                     </View>
-                    <View>
-                      <Text className="text-white font-medium">{gasto.descripcion}</Text>
-                      <Text className="text-sm text-secondary-400">{formatFecha(gasto.fecha)}</Text>
-                    </View>
-<<<<<<< HEAD
-                    <Text className="text-primary-300 font-bold">-${(Number(gasto.monto) || 0).toFixed(2)}</Text>
-=======
->>>>>>> d3590c377b705eac276c9fd660f204c517e2cdd2
+                    <Text className="text-primary-300 font-bold ml-2" style={{ alignSelf: 'center' }}>-${(Number(gasto.monto) || 0).toFixed(2)}</Text>
                   </View>
-                  <Text className="text-primary-300 font-bold">-${gasto.monto.toFixed(2)}</Text>
                 </View>
-              </View>
               )
             })
           ) : (

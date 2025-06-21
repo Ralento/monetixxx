@@ -10,14 +10,14 @@ import { PieChart } from "../../components/charts/PieChart"
 import { BarChart } from "../../components/charts/BarChart"
 
 export default function EstadisticasScreen() {
-  const { user } = useAuth()
+  const { user, statsUpdateFlag, periodoSaldo, setPeriodoSaldo, saldosPorPeriodo } = useAuth()
   const [estadisticas, setEstadisticas] = useState<EstadisticaCategoria[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [gastoMes, setGastoMes] = useState<number>(0)
   const [saldoInicialMes, setSaldoInicialMes] = useState<number | null>(null)
   const [gastosMensuales, setGastosMensuales] = useState<{ labels: string[]; valores: number[] }>({ labels: [], valores: [] })
-  const [periodoGrafica, setPeriodoGrafica] = useState<'mensual' | 'semanal' | 'anual'>('mensual')
+  const [periodoGrafica, setPeriodoGrafica] = useState<'semanal' | 'mensual' | 'anual'>(periodoSaldo)
   const [gastosGrafica, setGastosGrafica] = useState<{ labels: string[]; valores: number[] }>({ labels: [], valores: [] })
   const [loadingGrafica, setLoadingGrafica] = useState(false)
 
@@ -30,13 +30,18 @@ export default function EstadisticasScreen() {
   useEffect(() => {
     cargarEstadisticas()
     cargarResumen()
-    cargarGastosGrafica(periodoGrafica)
-  }, [])
+    cargarGastosGrafica(periodoSaldo)
+  }, [statsUpdateFlag])
 
   // Cargar gráfica al cambiar periodo
   useEffect(() => {
-    cargarGastosGrafica(periodoGrafica)
-  }, [periodoGrafica, user])
+    cargarGastosGrafica(periodoSaldo)
+  }, [periodoSaldo, user])
+
+  // Sincroniza periodoGrafica con periodoSaldo global
+  useEffect(() => {
+    setPeriodoGrafica(periodoSaldo)
+  }, [periodoSaldo])
 
   const cargarEstadisticas = async () => {
     if (!user) return
@@ -72,7 +77,7 @@ export default function EstadisticasScreen() {
   }
 
   // Nueva función para cargar los datos de la gráfica dinámica
-  const cargarGastosGrafica = async (periodo: 'mensual' | 'semanal' | 'anual') => {
+  const cargarGastosGrafica = async (periodo: 'semanal' | 'mensual' | 'anual') => {
     if (!user) return
     setLoadingGrafica(true)
     try {
@@ -106,18 +111,49 @@ export default function EstadisticasScreen() {
           <Text className="text-body">Análisis de tus gastos</Text>
         </View>
 
+        {/* Barra de selección de periodo */}
+        <View style={{ flexDirection: 'row', justifyContent: 'center', marginBottom: 10, marginTop: -10 }}>
+          {['semanal', 'mensual', 'anual'].map((p) => (
+            <TouchableOpacity
+              key={p}
+              onPress={() => setPeriodoSaldo(p as any)}
+              style={{
+                backgroundColor: periodoSaldo === p ? '#ffd166' : 'transparent',
+                borderRadius: 16,
+                paddingVertical: 6,
+                paddingHorizontal: 16,
+                marginHorizontal: 4,
+                borderWidth: 1,
+                borderColor: '#ffd166',
+              }}
+            >
+              <Text style={{ color: periodoSaldo === p ? '#23272e' : '#ffd166', fontWeight: 'bold' }}>
+                {p.charAt(0).toUpperCase() + p.slice(1)}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+
         {/* Summary Cards */}
         <View className="flex-row justify-between mb-6">
           <View className="card flex-1 mr-2 bg-secondary-800 border border-primary-300/30">
             <View className="items-center">
               <Ionicons name="wallet-outline" size={24} color="#ffd166" />
               <Text className="text-primary-300 font-bold text-lg mt-1">
-                ${user?.saldo_actual != null ? Number(user.saldo_actual).toFixed(2) : "0.00"}
+                ${saldosPorPeriodo[periodoSaldo] != null ? Number(saldosPorPeriodo[periodoSaldo]).toFixed(2) : "0.00"}
               </Text>
               <Text className="text-secondary-300 text-xs">Saldo actual</Text>
               {/* Saldo inicial mes */}
               {typeof saldoInicialMes === 'number' && !isNaN(saldoInicialMes) ? (
-                <Text className="text-secondary-400 text-xs mt-1">Saldo inicial mes: ${saldoInicialMes.toFixed(2)}</Text>
+                <Text className="text-secondary-400 text-xs mt-1">
+                  {periodoSaldo === 'semanal'
+                    ? 'Saldo inicial semana:'
+                    : periodoSaldo === 'anual'
+                      ? 'Saldo inicial año:'
+                      : 'Saldo inicial mes:'}
+                  ${saldosPorPeriodo[periodoSaldo] != null ? Number(saldosPorPeriodo[periodoSaldo]).toFixed(2) : "0.00"}
+                  <Text className="text-xs text-secondary-400 ml-1">({periodoSaldo.charAt(0).toUpperCase() + periodoSaldo.slice(1)})</Text>
+                </Text>
               ) : null}
             </View>
           </View>
@@ -128,7 +164,13 @@ export default function EstadisticasScreen() {
               <Text className="text-primary-300 font-bold text-lg mt-1">
                 -${gastoMes.toFixed(2)}
               </Text>
-              <Text className="text-secondary-300 text-xs">Gastado este mes</Text>
+              <Text className="text-secondary-300 text-xs">
+                {periodoSaldo === 'semanal'
+                  ? 'Gastado esta semana'
+                  : periodoSaldo === 'anual'
+                    ? 'Gastado este año'
+                    : 'Gastado este mes'}
+              </Text>
             </View>
           </View>
         </View>
@@ -150,28 +192,6 @@ export default function EstadisticasScreen() {
 
         {/* Bar Chart dinámica con barra de selección */}
         <View style={{ width: '100%', alignItems: 'center', marginBottom: 24, paddingHorizontal: 0, justifyContent: 'center' }}>
-          {/* Barra de selección de periodo */}
-          <View style={{ flexDirection: 'row', justifyContent: 'center', marginBottom: 10 }}>
-            {['semanal', 'mensual', 'anual'].map((p) => (
-              <TouchableOpacity
-                key={p}
-                onPress={() => setPeriodoGrafica(p as any)}
-                style={{
-                  backgroundColor: periodoGrafica === p ? '#ffd166' : 'transparent',
-                  borderRadius: 16,
-                  paddingVertical: 6,
-                  paddingHorizontal: 16,
-                  marginHorizontal: 4,
-                  borderWidth: 1,
-                  borderColor: '#ffd166',
-                }}
-              >
-                <Text style={{ color: periodoGrafica === p ? '#23272e' : '#ffd166', fontWeight: 'bold' }}>
-                  {p.charAt(0).toUpperCase() + p.slice(1)}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
           <ScrollView horizontal showsHorizontalScrollIndicator={true} style={{ width: '100%', alignSelf: 'center' }} contentContainerStyle={{ minWidth: 320, maxWidth: 700, justifyContent: 'center', alignItems: 'center' }}>
             <View style={{ width: Math.min(Math.max(320, gastosGrafica.labels.length * 60), 700), backgroundColor: '#1a1a1a', borderRadius: 12, padding: 12, alignSelf: 'center' }}>
               {loadingGrafica ? (
@@ -180,7 +200,7 @@ export default function EstadisticasScreen() {
                 <BarChart
                   labels={gastosGrafica.labels}
                   data={gastosGrafica.valores}
-                  title={`Gastos ${periodoGrafica.charAt(0).toUpperCase() + periodoGrafica.slice(1)}`}
+                  title={`Gastos ${periodoSaldo.charAt(0).toUpperCase() + periodoSaldo.slice(1)}`}
                 />
               )}
             </View>
@@ -205,7 +225,6 @@ export default function EstadisticasScreen() {
                   </View>
                   <View className="flex-row items-center">
                     <Text className="text-white font-medium mr-2">${(Number(item.total) || 0).toFixed(2)}</Text>
-                    <Text className="text-white font-medium mr-2">${item.total !== undefined && item.total !== null ? item.total.toFixed(2) : '0.00'}</Text>
                     <Text className="text-xs text-secondary-400">{item.porcentaje}%</Text>
                   </View>
                 </View>

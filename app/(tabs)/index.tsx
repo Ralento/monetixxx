@@ -23,6 +23,11 @@ export default function HomeScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [statsUpdateFlag])
 
+  // Log para verificar el saldo actual
+  useEffect(() => {
+    console.log('Saldo actual del usuario:', user?.saldo_actual)
+  }, [user?.saldo_actual])
+
   const cargarGastos = async () => {
     if (!user) return
 
@@ -93,11 +98,14 @@ export default function HomeScreen() {
     }
     setActualizandoSaldo(true)
     try {
-      await setSaldoPorPeriodo(periodoSaldo, saldoNum)
+      // Actualizar el saldo_actual del usuario en el backend
+      const usuarioActualizado = await GastoService.actualizarSaldoUsuario(user.id, saldoNum)
+      // Actualizar el saldo en el contexto
+      updateSaldo(usuarioActualizado.saldo_actual)
       setNuevoSaldo("")
       Alert.alert(
         "Saldo actualizado",
-        `Tu saldo (${periodoSaldo}) se ha actualizado correctamente.`
+        `Tu saldo actual se ha actualizado correctamente a $${saldoNum.toFixed(2)}.`
       )
     } catch (error) {
       Alert.alert("Error", "No se pudo actualizar el saldo.")
@@ -124,10 +132,7 @@ export default function HomeScreen() {
               <Text className="text-secondary-300 text-sm mb-1">Saldo Actual</Text>
               <View className="flex-row items-center">
                 <Text className="text-primary-300 text-2xl font-bold mr-2">
-                  $
-                  {saldosPorPeriodo[periodoSaldo] != null
-                    ? Number(saldosPorPeriodo[periodoSaldo]).toFixed(2)
-                    : "0.00"}
+                  ${user?.saldo_actual ? Number(user.saldo_actual).toFixed(2) : "0.00"}
                 </Text>
                 <View className="flex-row items-center" style={{ maxWidth: 220, flexWrap: 'wrap', gap: 2 }}>
                   {['semanal', 'mensual', 'anual'].map((p) => (

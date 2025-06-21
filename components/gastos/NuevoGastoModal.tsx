@@ -57,6 +57,14 @@ export function NuevoGastoModal({ visible, onClose, onSuccess }: NuevoGastoModal
         usuario_id: user.id,
         periodo: periodoSaldo,
       })
+      
+      // Actualizar el saldo del usuario en el contexto
+      if (usuario && usuario.saldo_actual !== undefined) {
+        console.log('Saldo anterior:', user.saldo_actual)
+        console.log('Saldo nuevo:', usuario.saldo_actual)
+        updateSaldo(usuario.saldo_actual)
+      }
+      
       // Recargar saldo del periodo desde el backend
       await recargarSaldoPeriodo(user.id, periodoSaldo)
       triggerStatsUpdate()

@@ -14,7 +14,7 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
 }
 
 export default function GastosScreen() {
-  const { user, updateSaldo, triggerStatsUpdate } = useAuth()
+  const { user, updateSaldo, triggerStatsUpdate, recargarSaldoPeriodo, periodoSaldo } = useAuth()
   const [gastos, setGastos] = useState<Gasto[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -63,6 +63,9 @@ export default function GastosScreen() {
         onPress: async () => {
           try {
             const { usuario } = await GastoService.eliminarGasto(id)
+            // Actualizar el saldo al eliminar gasto - se devuelve la cantidad al saldo
+            console.log('Saldo anterior:', user?.saldo_actual)
+            console.log('Saldo nuevo:', usuario.saldo_actual)
             await updateSaldo(usuario.saldo_actual)
             cargarGastos() // Recargar la lista
             triggerStatsUpdate() // Notificar globalmente

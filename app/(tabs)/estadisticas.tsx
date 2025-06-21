@@ -10,7 +10,7 @@ import { PieChart } from "../../components/charts/PieChart"
 import { BarChart } from "../../components/charts/BarChart"
 
 export default function EstadisticasScreen() {
-  const { user, statsUpdateFlag, periodoSaldo, setPeriodoSaldo, saldosPorPeriodo } = useAuth()
+  const { user, statsUpdateFlag, periodoSaldo, setPeriodoSaldo, saldosPorPeriodo, setSaldoPorPeriodo } = useAuth()
   const [estadisticas, setEstadisticas] = useState<EstadisticaCategoria[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -31,11 +31,13 @@ export default function EstadisticasScreen() {
     cargarEstadisticas()
     cargarResumen()
     cargarGastosGrafica(periodoSaldo)
+    cargarSaldoPeriodo(periodoSaldo)
   }, [statsUpdateFlag])
 
   // Cargar gráfica al cambiar periodo
   useEffect(() => {
     cargarGastosGrafica(periodoSaldo)
+    cargarSaldoPeriodo(periodoSaldo)
   }, [periodoSaldo, user])
 
   // Sincroniza periodoGrafica con periodoSaldo global
@@ -102,6 +104,18 @@ export default function EstadisticasScreen() {
     }
   }
 
+  // Nueva función para cargar el saldo por periodo
+  const cargarSaldoPeriodo = async (periodo: 'semanal' | 'mensual' | 'anual') => {
+    if (!user) return
+    try {
+      const saldo = await GastoService.obtenerSaldoPorPeriodo(user.id, periodo)
+      console.log(`Saldo ${periodo} cargado:`, saldo)
+      await setSaldoPorPeriodo(periodo, saldo)
+    } catch (err) {
+      console.error(`Error cargando saldo ${periodo}:`, err)
+    }
+  }
+
   return (
     <SafeAreaView className="container">
       <ScrollView className="flex-1 px-4">
@@ -111,7 +125,7 @@ export default function EstadisticasScreen() {
           <Text className="text-body">Análisis de tus gastos</Text>
         </View>
 
-        {/* Barra de selección de periodo */}
+        {/* Barra de selección de period */}
         <View style={{ flexDirection: 'row', justifyContent: 'center', marginBottom: 10, marginTop: -10 }}>
           {['semanal', 'mensual', 'anual'].map((p) => (
             <TouchableOpacity
@@ -134,27 +148,33 @@ export default function EstadisticasScreen() {
           ))}
         </View>
 
+        {/* Información sobre saldos */}
+        <View className="card mb-4 bg-secondary-800 border border-primary-300/30">
+          <View className="flex-row items-start">
+            <Ionicons name="information-circle-outline" size={20} color="#ffd166" style={{ marginRight: 8, marginTop: 2 }} />
+            <View style={{ flex: 1 }}>
+              <Text className="text-primary-300 font-medium text-sm mb-1">Información sobre saldos</Text>
+              <Text className="text-secondary-300 text-xs leading-4">
+                <Text className="font-bold">Saldo actual:</Text> Tu saldo general que se actualiza al crear/eliminar gastos.{'\n'}
+                <Text className="font-bold">Saldo por periodo:</Text> Saldos específicos para estadísticas de cada periodo.
+              </Text>
+            </View>
+          </View>
+        </View>
+
         {/* Summary Cards */}
         <View className="flex-row justify-between mb-6">
           <View className="card flex-1 mr-2 bg-secondary-800 border border-primary-300/30">
             <View className="items-center">
               <Ionicons name="wallet-outline" size={24} color="#ffd166" />
               <Text className="text-primary-300 font-bold text-lg mt-1">
-                ${saldosPorPeriodo[periodoSaldo] != null ? Number(saldosPorPeriodo[periodoSaldo]).toFixed(2) : "0.00"}
+                ${user?.saldo_actual ? Number(user.saldo_actual).toFixed(2) : "0.00"}
               </Text>
               <Text className="text-secondary-300 text-xs">Saldo actual</Text>
-              {/* Saldo inicial mes */}
-              {typeof saldoInicialMes === 'number' && !isNaN(saldoInicialMes) ? (
-                <Text className="text-secondary-400 text-xs mt-1">
-                  {periodoSaldo === 'semanal'
-                    ? 'Saldo inicial semana:'
-                    : periodoSaldo === 'anual'
-                      ? 'Saldo inicial año:'
-                      : 'Saldo inicial mes:'}
-                  ${saldosPorPeriodo[periodoSaldo] != null ? Number(saldosPorPeriodo[periodoSaldo]).toFixed(2) : "0.00"}
-                  <Text className="text-xs text-secondary-400 ml-1">({periodoSaldo.charAt(0).toUpperCase() + periodoSaldo.slice(1)})</Text>
-                </Text>
-              ) : null}
+              {/* Información adicional del saldo por periodo */}
+              <Text className="text-secondary-400 text-xs mt-1">
+                Saldo {periodoSaldo}: ${saldosPorPeriodo[periodoSaldo] != null ? Number(saldosPorPeriodo[periodoSaldo]).toFixed(2) : "0.00"}
+              </Text>
             </View>
           </View>
 
